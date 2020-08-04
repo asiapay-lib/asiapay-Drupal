@@ -1,0 +1,699 @@
+<?php
+
+/**
+ * @file
+ * Implements AsiaPay for use with Drupal Commerce.
+ */
+
+function commerce_asiapay_commerce_payment_method_info() {
+  $payment_method = array();
+
+  $display_title = t('AsiaPay (PayDollar/PesoPay/SiamPay) - You will be redirected to a secure payment site.');
+
+  $payment_method['asiapay'] = array(
+    'base' => 'commerce_asiapay',
+    'title' => t('AsiaPay'),
+    'short_title' => t('asiapay'),
+    'display_title' => $display_title,
+    'description' => t('asiapay'),
+    'terminal' => FALSE,
+    'offsite' => TRUE,
+    'offsite_autoredirect' => TRUE,
+  );
+
+  return $payment_method;
+}
+
+
+/**
+ * Payment method settings form.
+ */
+function commerce_asiapay_settings_form($settings = NULL) {
+  $form = array();
+
+  $form['asiapay_module_info'] = array(
+  		'#type' => 'item',
+  		'#title' => '&nbsp;',
+  		'#description' => getInfo()
+  );
+  
+  $settings = (array) $settings + array(
+  		'payment_url' => 'https://www.paydollar.com/b2c2/eng/payment/payForm.jsp',
+	    'merchant_id' => '',
+	  	/* 'currency' => '840', */
+	    'pay_method' => 'N',
+	  	'pay_type' => 'N',
+	    'language' => 'E',
+	  	'secure_hash_secret' => '',
+	    'prefix' => '',   
+  		'logging' => '',
+  );
+  
+  $form['payment_url'] = array(
+  		'#type' => 'select',
+  		'#title' => t('Payment Url'),
+  		'#options' => commerce_asiapay_payment_urls(),
+  		'#default_value' => $settings['payment_url'],
+  		'#required' => TRUE,
+  );
+
+  $form['merchant_id'] = array(
+  		'#type' => 'textfield',
+	    '#title' => t('Merchant Id'),
+	    '#description' => t('Merchant Account Id'),
+	    '#default_value' => $settings['merchant_id'],
+	    '#required' => TRUE,
+  );
+  
+  /* $form['currency'] = array(
+  		'#type' => 'select',
+  		'#title' => t('Merchant Account Currency'),
+  		'#options' => commerce_asiapay_currencies(),
+  		'#default_value' => $settings['currency'],
+  		'#required' => TRUE,
+  ); */
+  
+  $form['pay_method'] = array(
+  		'#type' => 'select',
+  		'#title' => t('Payment Method'),
+  		'#options' => commerce_asiapay_pay_methods(),
+  		'#default_value' => $settings['pay_method'],
+  		'#required' => TRUE,
+  );
+  
+  $form['pay_type'] = array(
+  		'#type' => 'select',
+  		'#title' => t('Payment Type'),
+  		'#options' => commerce_asiapay_pay_types(),
+  		'#default_value' => $settings['pay_type'],
+  		'#required' => TRUE,
+  );
+  
+  $form['language'] = array(
+  		'#type' => 'select',
+  		'#title' => t('Payment Page Language'),
+  		'#options' => commerce_asiapay_languages(),
+  		'#default_value' => $settings['language'],
+  		'#required' => TRUE,
+  );
+  
+  $form['secure_hash_secret'] = array(
+  		'#type' => 'textfield',
+	    '#title' => t('Secure Hash Secret'),
+	    '#description' => t('Optional. Your Secret Key from AsiaPay (PayDollar/PesoPay/SiamPay)'),
+	    '#default_value' => $settings['secure_hash_secret'],
+	    '#required' => FALSE,
+  );
+  
+  $form['prefix'] = array(
+  		'#type' => 'textfield',
+  		'#title' => t('Prefix'),
+  		'#description' => t('Optional. Order reference number prefix. Note: Do not use dash "-"'),
+  		'#default_value' => $settings['prefix'],
+  		'#required' => FALSE,
+  );
+  
+  $form['logging'] = array(
+  		'#type' => 'radios',
+  		'#title' => t('Logging'),
+  		'#options' => array(
+  				'notification' => t('Log notifications during processing.'),
+  				'full' => t('Log notifications with all data during validation and processing (used for debugging).'),
+  		),
+  		'#default_value' => $settings['logging'],
+  );
+  
+  return $form;
+}
+
+
+function getInfo(){
+	return '<table class="form">
+            	<tr>
+					<td valign="top">
+						<a href="http://www.asiapay.com/" target="_blank"><h1>AsiaPay\'s PayDollar/PesoPay/SiamPay Module</h1></a>
+					</td>
+				</tr>
+            	<tr>
+					<td valign="top">
+						<p><b>Test Credit Card</b></p>
+						<p>VISA: 4918914107195005</p>
+						<p>Expiry Date: 07/2015</p>
+						<p>Cardholder\'s Name: JOHN DOE</p>
+						<p>CVV: 123</p>
+					</td>
+				</tr>
+				<tr>
+					<td valign="top">
+						<p><b>Datafeed/Callback URL Setup (Important)</b></p>
+						<p>You need to login to your PayDollar/PesoPay/SiamPay Merchant Admin Panel and set the datafeed URL.</p>
+						<p>Once logged in, you may set the datafeed URL on Merchant Admin Panel > Profile > Profile Settings > Payment Options > Return Value Link (Datafeed)</p>
+						<p>Then copy and paste the URL below:</p>
+						<p>Datafeed URL: <b>' . commerce_asiapay_datafeed_url() . '</b></p>
+					</td>
+				</tr>
+				<tr>
+					<td valign="top">
+						&nbsp;
+					</td>
+				</tr>
+            </table>';
+}
+
+
+/**
+ * adds a message and CSS to the submission form.
+ */
+function commerce_asiapay_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
+  /* $form['asiapay_information'] = array(
+    '#markup' => '<span class="commerce-asiapay-info">' . t('(Continue with checkout to complete payment via AsiaPay.)') . '</span>',
+  ); 
+
+  return $form;*/
+}
+
+
+/**
+ * Redirect form, a wrapper around the module's general
+ *   use function for building a asiapay form.
+ */
+function commerce_asiapay_redirect_form($form, &$form_state, $order, $payment_method) {
+  // Return an error if the enabling action's settings haven't been configured.
+  if (empty($payment_method['settings']['merchant_id'])) {
+    drupal_set_message(t('AsiaPay is not configured for use. No AsiaPay account id has been specified.'), 'error');
+    return array();
+  }
+
+  return commerce_asiapay_order_form($form, $form_state, $order, $payment_method['settings']);
+}
+
+
+/**
+ * This is the success url, we return TRUE so order status will not be updated because status update is handled by commerce_asiapay_datafeed() 
+ */
+function commerce_asiapay_redirect_form_validate($order, $payment_method) {
+	if (!empty($payment_method['settings']['logging']) && $payment_method['settings']['logging'] == 'full') {
+    	watchdog('commerce_asiapay', 'Customer returned from AsiaPay with the following GET data:<pre>' . check_plain(print_r($_GET, TRUE)) . '</pre>', array(), WATCHDOG_NOTICE);
+  	}
+  	
+  	return TRUE;
+}
+
+
+/**
+ * For generating securehash to be sent to asiapay
+ */
+function generatePaymentSecureHash($merchantId, $merchantReferenceNumber, $currencyCode, $amount, $paymentType, $secureHashSecret) {
+	$buffer = $merchantId . '|' . $merchantReferenceNumber . '|' . $currencyCode . '|' . $amount . '|' . $paymentType . '|' . $secureHashSecret;
+	return sha1($buffer);
+}
+
+/**
+ * For validating secureHash sent by asiapay
+ */
+function verifyPaymentDatafeed($src, $prc, $successCode, $merchantReferenceNumber, $paydollarReferenceNumber, $currencyCode, $amount, $payerAuthenticationStatus, $secureHashSecret, $secureHash) {
+	$buffer = $src . '|' . $prc . '|' . $successCode . '|' . $merchantReferenceNumber . '|' . $paydollarReferenceNumber . '|' . $currencyCode . '|' . $amount . '|' . $payerAuthenticationStatus . '|' . $secureHashSecret;
+	$verifyData = sha1($buffer);
+	if ($secureHash == $verifyData) {
+		return true;
+	}
+	return false;
+}
+
+
+/**
+ * Keyed array of asiapay parameters
+ */
+function commerce_asiapay_purchase_parameters ($order, $settings) {
+  $wrapper = entity_metadata_wrapper('commerce_order', $order);
+
+  //prefix handler
+  $order_id = $order->order_id;
+  if($settings['prefix'] == ''){
+  	$order_ref = $order_id;
+  }else{
+  	$order_ref = $settings['prefix'] . '-' . $order_id;
+  }
+  
+  /* $currency_code = $settings['currency']; */
+  $currency_code = getIsoCurrCode($wrapper->commerce_order_total->currency_code->value());  
+  $amount = round(commerce_currency_amount_to_decimal($wrapper->commerce_order_total->amount->value(), $wrapper->commerce_order_total->currency_code->value()), 2); 
+  
+  $merchant_id = $settings['merchant_id'];
+  $pay_method = $settings['pay_method'];
+  
+  $pay_type = $settings['pay_type'];
+  $language = $settings['language'];
+  
+  $success_url = url('checkout/' . $order->order_id . '/payment/return/' . $order->data['payment_redirect_key'], array('absolute' => TRUE));
+  $fail_url = url('checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'], array('absolute' => TRUE));
+  $cancel_url = url('checkout/' . $order->order_id . '/payment/back/' . $order->data['payment_redirect_key'], array('absolute' => TRUE));
+  
+  $secure_hash_secret = $settings['secure_hash_secret'];  
+  $secure_hash = '';
+  if($secure_hash_secret != ''){
+  	$secure_hash = generatePaymentSecureHash($merchant_id, $order_ref, $currency_code, $amount, $pay_type, $secure_hash_secret); 
+  }
+  	
+  $remarks = '';
+  
+  
+  // Build the data array that will be translated into hidden form values.  
+  $data = array (
+  		'orderRef' => 		$order_ref,
+  		'amount' => 		$amount,
+  		'merchantId' => 	$merchant_id,
+  		'payMethod' => 		$pay_method,
+  		'payType'	=> 		$pay_type,
+  		'currCode' => 		$currency_code,
+  		'lang' => 			$language,
+  		'successUrl' => 	$success_url,
+  		'failUrl' => 		$fail_url,
+  		'cancelUrl' => 		$cancel_url,
+  		'secureHash' => 	$secure_hash,
+  		'remark' => 		$remarks,
+  		'failRetry' =>		'no',
+  		
+  		
+  );
+ 
+  return $data;
+}
+
+
+/**
+ * Builds a a form from an order object.
+ *
+ * @param $order
+ *   The fully loaded order being paid for.
+ * @param $settings
+ *   An array of settings used to build out the form
+ *
+ * @return
+ *   A renderable form array.
+ */
+function commerce_asiapay_order_form($form, &$form_state, $order, $settings) {
+  $data = commerce_asiapay_purchase_parameters ($order, $settings);
+
+  $form['#action'] = $settings['payment_url'];
+
+  foreach ($data as $name => $value) {
+    if (!empty($value)) {
+      $form[$name] = array('#type' => 'hidden', '#value' => $value);
+    }
+  }
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Proceed with the payment'),
+  );
+
+  return $form;
+}
+
+
+/**
+ * Returns an array of all possible payment URLs.
+ */
+function commerce_asiapay_payment_urls() {
+	return array(
+			'https://www.paydollar.com/b2c2/eng/payment/payForm.jsp' => 'PayDollar Live URL', 
+			'https://test.paydollar.com/b2cDemo/eng/payment/payForm.jsp' => 'PayDollar Test URL', 
+			'https://www.pesopay.com/b2c2/eng/payment/payForm.jsp' => 'PesoPay Live URL', 
+			'https://test.pesopay.com/b2cDemo/eng/payment/payForm.jsp' => 'PesoPay Test URL', 
+			'https://www.siampay.com/b2c2/eng/payment/payForm.jsp' => 'SiamPay Live URL', 
+			'https://test.siampay.com/b2cDemo/eng/payment/payForm.jsp' => 'SiamPay Test URL'
+	);
+}
+
+
+/**
+ * Returns an array of all possible language codes.
+ */
+function commerce_asiapay_languages() {
+	return array(
+			'E' => 'English', 
+	  		'C' => 'Traditional Chinese', 
+	  		'X' => 'Simplified Chinese', 
+	  		'J' => 'Japanese', 
+	  		'T' => 'Thai', 
+	  		'F' => 'French', 
+	  		'G' => 'German', 
+	  		'R' => 'Russian', 
+	  		'S' => 'Spanish', 
+	  		'V' => 'Vietnamese', 
+	  		'K' => 'Korean'
+	);
+}
+
+
+/**
+ * Returns an array of all possible currency codes.
+ */
+/* function commerce_asiapay_currencies() {
+	return array(
+			'344' => 'HKD', 
+	  		'840' => 'USD', 
+	  		'702' => 'SGD', 
+	  		'156' => 'CNY (RMB)', 
+	  		'392' => 'JPY', 
+	  		'901' => 'TWD', 
+	  		'036' => 'AUD', 
+	  		'978' => 'EUR', 
+	  		'826' => 'GBP', 
+	  		'123' => 'CAD', 
+	  		'446' => 'MOP',
+			'608' => 'PHP',
+			'764' => 'THB',
+			'458' => 'MYR',
+			'360' => 'IDR',
+			'410' => 'KRW',
+			'682' => 'SAR',
+			'554' => 'NZD',
+			'784' => 'AED',
+			'096' => 'BND',
+			'704' => 'VND',
+			'356' => 'INR'
+	);
+} */
+function getIsoCurrCode($commerce_order_currency_code) {
+	switch($commerce_order_currency_code){
+		case 'HKD':
+			$cur = '344';
+			break;
+		case 'USD':
+			$cur = '840';
+			break;
+		case 'SGD':
+			$cur = '702';
+			break;
+		case 'CNY':
+			$cur = '156';
+			break;
+		case 'JPY':
+			$cur = '392';
+			break;
+		case 'TWD':
+			$cur = '901';
+			break;
+		case 'AUD':
+			$cur = '036';
+			break;
+		case 'EUR':
+			$cur = '978';
+			break;
+		case 'GBP':
+			$cur = '826';
+			break;
+		case 'CAD':
+			$cur = '124';
+			break;
+		case 'MOP':
+			$cur = '446';
+			break;
+		case 'PHP':
+			$cur = '608';
+			break;
+		case 'THB':
+			$cur = '901';
+			break;
+		case 'MYR':
+			$cur = '458';
+			break;
+		case 'IDR':
+			$cur = '360';
+			break;
+		case 'KRW':
+			$cur = '410';
+			break;
+		case 'SAR':
+			$cur = '682';
+			break;
+		case 'NZD':
+			$cur = '554';
+			break;
+		case 'AED':
+			$cur = '784';
+			break;
+		case 'BND':
+			$cur = '096';
+			break;
+		case 'VND':
+			$cur = '704';
+			break;
+		case 'INR':
+			$cur = '356';
+			break;
+		default:
+			$cur = '344';
+	}
+	return $cur;
+}
+function getCurrCode($asiapay_currency_code) {
+	switch($asiapay_currency_code){
+		case '344':
+			$cur = 'HKD';
+			break;
+		case '840':
+			$cur = 'USD';
+			break;
+		case '702':
+			$cur = 'SGD';
+			break;
+		case '156':
+			$cur = 'CNY';
+			break;
+		case '392':
+			$cur = 'JPY';
+			break;
+		case '901':
+			$cur = 'TWD';
+			break;
+		case '036':
+			$cur = 'AUD';
+			break;
+		case '978':
+			$cur = 'EUR';
+			break;
+		case '826':
+			$cur = 'GBP';
+			break;
+		case '124':
+			$cur = 'CAD';
+			break;
+		case '446':
+			$cur = 'MOP';
+			break;
+		case '608':
+			$cur = 'PHP';
+			break;
+		case '901':
+			$cur = 'THB';
+			break;
+		case '458':
+			$cur = 'MYR';
+			break;
+		case '360':
+			$cur = 'IDR';
+			break;
+		case '410':
+			$cur = 'KRW';
+			break;
+		case '682':
+			$cur = 'SAR';
+			break;
+		case '554':
+			$cur = 'NZD';
+			break;
+		case '784':
+			$cur = 'AED';
+			break;
+		case '096':
+			$cur = 'BND';
+			break;
+		case '704':
+			$cur = 'VND';
+			break;
+		case '356':
+			$cur = 'INR';
+			break;
+	}
+	return $cur;
+}
+
+
+/**
+ * Returns an array of all possible payment methods.
+ */
+function commerce_asiapay_pay_methods() {
+	return array(
+			'ALL' => 'ALL',
+			'CC' => 'CC',
+			'VISA' => 'VISA',
+			'Master' => 'Master',
+			'JCB' => 'JCB',
+			'AMEX' => 'AMEX',
+			'Diners' => 'Diners',
+			'PAYPAL' => 'PAYPAL',
+			'BancNet' => 'BancNet',
+			'GCash' => 'GCash',
+			'SMARTMONEY' => 'SMARTMONEY',
+			'PPS' => 'PPS',
+			'CHINAPAY' => 'CHINAPAY',
+			'ALIPAY' => 'ALIPAY',
+			'TENPAY' => 'TENPAY',
+			'99BILL' => '99BILL',
+			'MEPS' => 'MEPS',
+			'SCB' => 'SCB',
+			'BPM' => 'BPM',
+			'KTB' => 'KTB',
+			'UOB' => 'UOB',
+			'KRUNGSRIONLINE' => 'KRUNGSRIONLINE',
+			'TMB' => 'TMB',
+			'IBANKING' => 'IBANKING',
+			'UPOP' => 'UPOP',
+			'M2U' => 'M2U',
+			'CIMBCLICK' => 'CIMBCLICK',
+			'PAYCASH' => 'PAYCASH'
+	);
+}
+
+
+/**
+ * Returns an array of all possible payment types.
+ */
+function commerce_asiapay_pay_types() {
+	return array(
+			'N' => 'Normal (Sale)',
+			'H' => 'Hold (Authorize)'
+	);
+}
+
+
+/**
+ * Implements hook_menu().
+ */
+function commerce_asiapay_menu() {
+  $items = array();
+
+  // Define an always accessible path to receive IPN/Datafeed/Callback.
+  $items['commerce_asiapay/datafeed'] = array(
+    'page callback' => 'commerce_asiapay_datafeed',
+    'page arguments' => array(),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+
+/**
+ * Process the AsiaPay Datafeed
+ *
+ */
+function commerce_asiapay_datafeed() {
+	
+	//Receive POSTed variables from the gateway
+	$src = isset($_POST['src'])? $_POST['src'] : '';
+	$prc = isset($_POST['prc'])? $_POST['prc'] : '';
+	$ord = isset($_POST['Ord'])? $_POST['Ord'] : '';
+	$holder = isset($_POST['Holder'])? $_POST['Holder'] : '';
+	$successCode = isset($_POST['successcode'])? $_POST['successcode'] : '';
+	$ref = isset($_POST['Ref'])? $_POST['Ref'] : '';
+	$payRef = isset($_POST['PayRef'])? $_POST['PayRef'] : '';
+	$amt = isset($_POST['Amt'])? $_POST['Amt'] : '';
+	$cur = isset($_POST['Cur'])? $_POST['Cur'] : '';
+	$remark = isset($_POST['remark'])? $_POST['remark'] : '';
+	$authId = isset($_POST['AuthId'])? $_POST['AuthId'] : '';
+	$eci = isset($_POST['eci'])? $_POST['eci'] : '';
+	$payerAuth = isset($_POST['payerAuth'])? $_POST['payerAuth'] : '';
+	$sourceIp = isset($_POST['sourceIp'])? $_POST['sourceIp'] : '';
+	$ipCountry = isset($_POST['ipCountry'])? $_POST['ipCountry'] : '';
+	$secureHash = isset($_POST['secureHash'])? $_POST['secureHash'] : '';
+	
+	//load the payment method
+	$payment_method = commerce_payment_method_instance_load('asiapay|commerce_payment_asiapay');
+	
+	echo "OK! " . "Commerce Order Ref. No.: ". $ref . " | ";
+	
+	//log for debugging
+	if (!empty($payment_method['settings']['logging']) && $payment_method['settings']['logging'] == 'full') {
+		watchdog('commerce_asiapay', 'AsiaPay sent the following $_POST data:<pre>' . check_plain(print_r($_POST, TRUE)) . '</pre>', array(), WATCHDOG_NOTICE);
+	}
+	
+	if( isset($_POST['Ref']) && isset($_POST['successcode']) && isset($_POST['src']) && isset($_POST['src']) ){
+	
+		$order_id = $ref;
+	
+		//prefix handler
+		$hasPrefix = preg_match("/-/", $order_id);
+		if($hasPrefix == 1){
+			$exploded_order_id = explode("-", $order_id);
+			$order_id = $exploded_order_id[1];
+		}
+		
+		//load order
+		$order = commerce_order_load($order_id);
+		
+		$secureHashArr = explode ( ',', $secureHash );
+		while ( list ( $key, $value ) = each ( $secureHashArr ) ) {
+			$checkSecureHash = verifyPaymentDatafeed($src, $prc, $successCode, $ref, $payRef, $cur, $amt, $payerAuth, $payment_method['settings']['secure_hash_secret'], $value);
+			if($checkSecureHash){
+				break;
+			}
+		}
+		
+		if($payment_method['settings']['secure_hash_secret'] == '' || $checkSecureHash){
+		
+			//initialize the payment transaction
+			$transaction = commerce_payment_transaction_new('commerce_asiapay', $order->order_id);			
+			$transaction->instance_id = $payment_method['instance_id'];
+			$transaction->amount = str_replace('.', '', $amt);
+			$transaction->currency_code = getCurrCode($cur);
+			$transaction->message = 'AsiaPay sent the following $_POST data:<pre>' . check_plain(print_r($_POST, TRUE)) . '</pre>';
+			
+			if($successCode == '0'){
+				
+				echo 'Payment result: Successful. ';
+				
+				//save the payment transaction
+				$transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;				
+				commerce_payment_transaction_save($transaction);
+				echo 'A Transaction has been saved with status: "' . $transaction->status . '". ';
+				
+				//update order status
+				commerce_order_status_update($order, 'processing');
+				echo 'The Order status has been updated to: "processing". ';
+				
+			}else{		
+						
+				echo 'Payment result: Unsuccessful. ';
+
+				//save the payment transaction
+				$transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
+				commerce_payment_transaction_save($transaction);
+				echo 'A Transaction has been saved with status: "' . $transaction->status . '". ';
+				
+			}
+			
+		}else{			
+			echo 'Secure Hash checking failed.';			
+		}
+		
+	}
+	
+}
+
+
+/**
+ * Returns the Datafeed/Callback URL.
+ */
+function commerce_asiapay_datafeed_url() {
+	$parts = array(
+			'commerce_asiapay',
+			'datafeed',
+	);
+
+	return url(implode('/', $parts), array('absolute' => TRUE)); 	
+}
