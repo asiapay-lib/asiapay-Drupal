@@ -2,7 +2,7 @@
 Use PayDollar/SaimPay/PesoPays plugin for Drupal to offer ALL payments option.
 
 ## Integration
-The plugin integrates integrate Drupal with PayDollar/SaimPay/PesoPay payment gateway with All payment method.
+The plugin integrates Drupal with PayDollar/SaimPay/PesoPay payment gateway with All payment method.
 
 ## Requirements
 This plugin supports Drupal Commerce (Kickstart 2.x) 7.x and higher.
