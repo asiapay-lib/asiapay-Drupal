@@ -1,6 +1,9 @@
 # PayDollar/SaimPay/PesoPay Payment plugin for Drupal
 Use PayDollar/SaimPay/PesoPays plugin for Drupal to offer ALL payments option.
 
+## Download
+Please download the latest plugin version. [Download](https://github.com/asiapay-lib/asiapay-Drupal/releases/latest)
+
 ## Integration
 The plugin integrates Drupal with PayDollar/SaimPay/PesoPay payment gateway with All payment method.
 
@@ -23,7 +26,7 @@ This plugin supports Drupal Commerce (Kickstart 2.x) 7.x and higher.
  4. On the confirmation page, review your changes then click the “Confirm button”.
 
  ## Documentation
-[Drupal documentation]()
+[Drupal documentation](https://github.com/asiapay-lib/asiapay-Drupal/raw/master/Drupal%20Commerce%20Module%20Integration%20Guide%2020140917.doc)
 
 ## Support
 If you have a feature request, or spotted a bug or a technical problem, create a GitHub issue. For other questions, contact our [Customer Service](https://www.paydollar.com/en/contactus.html).
