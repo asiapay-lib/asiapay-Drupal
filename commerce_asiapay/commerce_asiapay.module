@@ -47,6 +47,8 @@ function commerce_asiapay_settings_form($settings = NULL) {
 	  	'secure_hash_secret' => '',
 	    'prefix' => '',   
   		'logging' => '',
+  		'transaction_type' => '01',
+  		'challenge_pref' => '01',
   );
   
   $form['payment_url'] = array(
@@ -112,6 +114,23 @@ function commerce_asiapay_settings_form($settings = NULL) {
   		'#default_value' => $settings['prefix'],
   		'#required' => FALSE,
   );
+
+  $form['transaction_type'] = array(
+  		'#type' => 'select',
+	    '#title' => t('Transaction Type'),
+	    '#options' => commerce_asiapay_transaction_type(),
+	    '#description' => t('Suitable transaction type. "01" - Goods/ Service Purchase is the Default value if transaction type not provided.'),
+	    '#default_value' => $settings['transaction_type'],
+	    '#required' => TRUE,
+  );
+  $form['challenge_pref'] = array(
+  		'#type' => 'select',
+	    '#title' => t('Challenge Preference'),
+	    '#options' => commerce_asiapay_challenge_pref(),
+	    '#description' => t('Indicates whether a challenge is requested for the transactions in 3DS2.0. If "01" - No challenge requested options are selected, the chargeback liability shift to merchant.'),
+	    '#default_value' => $settings['challenge_pref'],
+	    '#required' => TRUE,
+  );
   
   $form['logging'] = array(
   		'#type' => 'radios',
@@ -141,6 +160,8 @@ function getInfo(){
 						<p>Expiry Date: 07/2015</p>
 						<p>Cardholder\'s Name: JOHN DOE</p>
 						<p>CVV: 123</p>
+						<p><b>3DS 2.0 Testing Cards</b></p>
+						<p><a href="https://test.paydollar.com/b2cuat/eng/merchant/support/threeDSTestingCardInfo.html">https://test.paydollar.com/b2cuat/eng/merchant/support/threeDSTestingCardInfo.html</a></p>
 					</td>
 				</tr>
 				<tr>
@@ -256,6 +277,13 @@ function commerce_asiapay_purchase_parameters ($order, $settings) {
   }
   	
   $remarks = '';
+
+
+  //3ds2.0 settings
+  $paramThreeDS = array();
+
+  $transaction_type = $settings['transaction_type'];
+  $challenge_pref = $settings['challenge_pref'];
   
   
   // Build the data array that will be translated into hidden form values.  
@@ -276,7 +304,22 @@ function commerce_asiapay_purchase_parameters ($order, $settings) {
   		
   		
   );
- 
+
+  
+	include("commerce_asiapay_three_ds.inc");
+
+	$allThreeDsParam = getAllThreeDsParam($order,$wrapper);
+
+	$paramThreeDS = array(
+			'threeDSTransType' => $transaction_type,
+			'threeDSChallengePreference' => $challenge_pref,
+			'threeDSCustomerEmail' => $order->mail,
+			'threeDSDeliveryEmail' => $order->mail,
+	);
+
+	$paramThreeDS = array_merge($paramThreeDS,$allThreeDsParam);
+	$data = array_merge($data,$paramThreeDS);
+	
   return $data;
 }
 
@@ -566,6 +609,37 @@ function commerce_asiapay_pay_types() {
 	return array(
 			'N' => 'Normal (Sale)',
 			'H' => 'Hold (Authorize)'
+	);
+}
+
+/**
+ * Returns an array of all possible transaction type.
+ */
+function commerce_asiapay_transaction_type() {
+	return array(
+			'01' => 'Goods/ Service Purchase', 
+	  		'03' => 'Check Acceptance', 
+	  		'10' => 'Account Funding', 
+	  		'11' => 'Quasi-Cash Transaction', 
+	  		'28' => 'Prepaid Activation and Load'
+	);
+}
+
+
+/**
+ * Returns an array of all possible challenge preferences.
+ */
+function commerce_asiapay_challenge_pref() {
+	return array(
+			'01' => 'No preference', 
+	  		'02' => 'No challenge requested *', 
+	  		'03' => 'Challenge requested (Merchant preference)', 
+	  		'04' => 'Challenge requested (Mandate)', 
+	  		'05' => 'No challenge requested (transactional risk analysis is already performed) *', 
+	  		'06' => 'No challenge requested (Data share only)*', 
+	  		'07' => 'No challenge requested (strong consumer authentication is already performed) *', 
+	  		'08' => 'No challenge requested (utilise whitelist exemption if no challenge required) *', 
+	  		'09' => 'Challenge requested (whitelist prompt requested if challenge required)'
 	);
 }
 
